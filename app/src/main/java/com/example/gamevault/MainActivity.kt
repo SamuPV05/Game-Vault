@@ -37,6 +37,9 @@ import androidx.navigation.compose.rememberNavController
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 
+import com.example.gamevault.ui.DuelScreen
+import com.example.gamevault.viewmodel.DuelViewModel
+
 // --- PALETA DE COLORES (Cyberpunk / Sci-Fi) ---
 val BgBlack = Color(0xFF05070A) // Negro profundo
 val SurfaceDark = Color(0xFF10141D) // Gris azulado para tarjetas
@@ -61,11 +64,38 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun GameCatalogNavGraph(viewModel: GameViewModel = viewModel()) {
+fun GameCatalogNavGraph(
+    viewModel: GameViewModel = viewModel(),
+    duelViewModel: DuelViewModel = viewModel()
+) {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = "splash") {
         composable("splash") { GameSplashScreen(navController) }
         composable("home") { GameHomeScreen(navController, viewModel) }
+        composable("duel") {
+            Scaffold(
+                containerColor = BgBlack,
+                bottomBar = {
+                    CyberBottomNavigation(
+                        currentRoute = "duel",
+                        onNavigate = { route ->
+                            if (route != "duel") {
+                                navController.navigate(route) {
+                                    popUpTo("home") { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        }
+                    )
+                }
+            ) { paddingValues ->
+                DuelScreen(
+                    modifier = Modifier.padding(paddingValues),
+                    viewModel = duelViewModel
+                )
+            }
+        }
         composable("detail/{id}") { backStackEntry ->
             val gameId = backStackEntry.arguments?.getString("id")?.toIntOrNull()
             val game = viewModel.games.find { it.id == gameId }
@@ -116,7 +146,20 @@ fun GameHomeScreen(navController: NavHostController, viewModel: GameViewModel) {
 
     Scaffold(
         containerColor = BgBlack,
-        bottomBar = { CyberBottomNavigation() }
+        bottomBar = {
+            CyberBottomNavigation(
+                currentRoute = "home",
+                onNavigate = { route ->
+                    if (route != "home") {
+                        navController.navigate(route) {
+                            popUpTo("home") { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+            )
+        }
     ) { paddingValues ->
         if (viewModel.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -130,7 +173,7 @@ fun GameHomeScreen(navController: NavHostController, viewModel: GameViewModel) {
                 // Header Tecnológico
                 item {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 32.dp, bottom = 24.dp),
+                        modifier = Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 32.dp, bottom = 20.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -139,10 +182,79 @@ fun GameHomeScreen(navController: NavHostController, viewModel: GameViewModel) {
                             Text("DATABASE", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Black)
                         }
                         Box(
-                            modifier = Modifier.size(45.dp).clip(CutCornerShape(12.dp)).background(SurfaceDark).border(1.dp, NeonPink, CutCornerShape(12.dp)),
+                            modifier = Modifier
+                                .clip(CutCornerShape(12.dp))
+                                .background(SurfaceDark)
+                                .border(1.dp, NeonPink, CutCornerShape(12.dp))
+                                .clickable { navController.navigate("duel") }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Menu, contentDescription = null, tint = Color.White)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.SportsEsports, contentDescription = null, tint = NeonCyan, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("DUEL", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                            }
+                        }
+                    }
+                }
+
+                // Banner de acceso rápido a Metacritic Duel
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 24.dp)
+                            .clip(CutCornerShape(topStart = 20.dp, bottomEnd = 20.dp))
+                            .background(SurfaceDark)
+                            .border(2.dp, CyberGradient, CutCornerShape(topStart = 20.dp, bottomEnd = 20.dp))
+                            .clickable { navController.navigate("duel") }
+                            .padding(20.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "MODO INTERACTIVO // RAWG API",
+                                    color = NeonPink,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    letterSpacing = 1.5.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "METACRITIC DUEL",
+                                    color = Color.White,
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Black,
+                                    letterSpacing = 1.sp
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "¿Más alto o más bajo? Pon a prueba tu racha de Metascore.",
+                                    color = TextMuted,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(CutCornerShape(12.dp))
+                                    .background(NeonCyan)
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "JUGAR ▲▼",
+                                    color = BgBlack,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 12.sp
+                                )
+                            }
                         }
                     }
                 }
@@ -253,22 +365,36 @@ fun GameHomeScreen(navController: NavHostController, viewModel: GameViewModel) {
 // Bottom Navigation (Cyber Style)
 // ==========================================
 @Composable
-fun CyberBottomNavigation() {
+fun CyberBottomNavigation(
+    currentRoute: String = "home",
+    onNavigate: (String) -> Unit = {}
+) {
     NavigationBar(containerColor = SurfaceDark, tonalElevation = 8.dp) {
         NavigationBarItem(
-            selected = true, onClick = { },
-            icon = { Icon(Icons.Outlined.Home, contentDescription = null) },
-            colors = NavigationBarItemDefaults.colors(selectedIconColor = NeonCyan, unselectedIconColor = TextMuted, indicatorColor = Color.Transparent)
+            selected = currentRoute == "home",
+            onClick = { onNavigate("home") },
+            icon = { Icon(Icons.Outlined.Home, contentDescription = "Catálogo") },
+            label = { Text("CATÁLOGO", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = NeonCyan,
+                selectedTextColor = NeonCyan,
+                unselectedIconColor = TextMuted,
+                unselectedTextColor = TextMuted,
+                indicatorColor = Color.Transparent
+            )
         )
         NavigationBarItem(
-            selected = false, onClick = { },
-            icon = { Icon(Icons.Default.Explore, contentDescription = null) },
-            colors = NavigationBarItemDefaults.colors(selectedIconColor = NeonCyan, unselectedIconColor = TextMuted, indicatorColor = Color.Transparent)
-        )
-        NavigationBarItem(
-            selected = false, onClick = { },
-            icon = { Icon(Icons.Outlined.Person, contentDescription = null) },
-            colors = NavigationBarItemDefaults.colors(selectedIconColor = NeonCyan, unselectedIconColor = TextMuted, indicatorColor = Color.Transparent)
+            selected = currentRoute == "duel",
+            onClick = { onNavigate("duel") },
+            icon = { Icon(Icons.Default.SportsEsports, contentDescription = "Metacritic Duel") },
+            label = { Text("METACRITIC DUEL", fontSize = 10.sp, fontWeight = FontWeight.Bold) },
+            colors = NavigationBarItemDefaults.colors(
+                selectedIconColor = NeonPink,
+                selectedTextColor = NeonPink,
+                unselectedIconColor = TextMuted,
+                unselectedTextColor = TextMuted,
+                indicatorColor = Color.Transparent
+            )
         )
     }
 }
