@@ -1,4 +1,4 @@
-# 🎮 Game Vault 2.0 — Cyberpunk Gaming Ecosystem
+# 🎮 Game Vault
 
 ## 📝 Descripción del Proyecto
 **Game Vault** es un ecosistema interactivo nativo para Android diseñado bajo una estética **Cyberpunk / Sci-Fi** de alto contraste. Nacida como un catálogo de consulta, la aplicación ha evolucionado hacia una plataforma integral para gamers que combina descubrimiento de juegos en tiempo real, radar de ofertas 100% gratuitas, gestión personal de colección (*Backlog*), minijuegos arcade competitivos y un sistema de progresión con niveles e insignias.
