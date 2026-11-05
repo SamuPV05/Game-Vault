@@ -34,6 +34,35 @@ data class GameDuelItem(
 )
 
 /**
+ * Resultado de la última predicción en una ronda de duelo.
+ */
+enum class GuessResult {
+    NONE,
+    CORRECT,
+    WRONG
+}
+
+/**
+ * Sistema de Rangos Cyberpunk según la racha alcanzada en Metacritic Duel.
+ */
+enum class CyberRank(
+    val title: String,
+    val minScore: Int
+) {
+    ROOKIE("ROOKIE GLITCH", 0),
+    RUNNER("STREET RUNNER", 3),
+    NETRUNNER("NETRUNNER PRO", 7),
+    OVERCLOCK("OVERCLOCK MASTER", 12),
+    CYBER_GOD("CYBER LEGEND", 18);
+
+    companion object {
+        fun fromScore(score: Int): CyberRank {
+            return entries.lastOrNull { score >= it.minScore } ?: ROOKIE
+        }
+    }
+}
+
+/**
  * Mapea un DTO de RAWG al modelo de dominio solo si cumple las reglas de validación:
  * - id y name válidos
  * - metacritic != null && metacritic > 0

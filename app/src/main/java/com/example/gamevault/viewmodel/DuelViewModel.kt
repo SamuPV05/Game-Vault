@@ -1,9 +1,13 @@
 package com.example.gamevault.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.gamevault.data.DuelPreferences
 import com.example.gamevault.data.DuelRepository
+import com.example.gamevault.model.CyberRank
 import com.example.gamevault.model.GameDuelItem
+import com.example.gamevault.model.GuessResult
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,16 +24,28 @@ data class DuelUiState(
     val challengerGame: GameDuelItem? = null,
     val score: Int = 0,
     val highScore: Int = 0,
+    val gamesPlayed: Int = 0,
+    val isNewRecord: Boolean = false,
+    val lastGuessResult: GuessResult = GuessResult.NONE,
     val isRevealed: Boolean = false,
     val isGameOver: Boolean = false,
     val isLoading: Boolean = true
-)
+) {
+    val rank: CyberRank
+        get() = CyberRank.fromScore(score)
+}
 
-class DuelViewModel(
+class DuelViewModel(application: Application) : AndroidViewModel(application) {
+
     private val repository: DuelRepository = DuelRepository()
-) : ViewModel() {
+    private val preferences: DuelPreferences = DuelPreferences(application)
 
-    private val _uiState = MutableStateFlow(DuelUiState())
+    private val _uiState = MutableStateFlow(
+        DuelUiState(
+            highScore = preferences.getHighScore(),
+            gamesPlayed = preferences.getGamesPlayed()
+        )
+    )
     val uiState: StateFlow<DuelUiState> = _uiState.asStateFlow()
 
     private var allGames: List<GameDuelItem> = emptyList()
@@ -41,17 +57,25 @@ class DuelViewModel(
     }
 
     /**
-     * Inicia o reinicia la partida cargando y barajando los juegos con Metascore válido.
+     * Inicia o reinicia la partida cargando y barajando los juegos con Metascore válido,
+     * preservando el récord histórico persistido en el dispositivo.
      */
     fun loadGames() {
         transitionJob?.cancel()
         viewModelScope.launch {
+            val savedHighScore = maxOf(_uiState.value.highScore, preferences.getHighScore())
+            val totalPlayed = preferences.getGamesPlayed()
+
             _uiState.update { state ->
                 state.copy(
                     isLoading = true,
                     isGameOver = false,
                     isRevealed = false,
-                    score = 0
+                    score = 0,
+                    highScore = savedHighScore,
+                    gamesPlayed = totalPlayed,
+                    isNewRecord = false,
+                    lastGuessResult = GuessResult.NONE
                 )
             }
 
@@ -70,6 +94,10 @@ class DuelViewModel(
                     currentGame = firstGame,
                     challengerGame = secondGame,
                     score = 0,
+                    highScore = savedHighScore,
+                    gamesPlayed = totalPlayed,
+                    isNewRecord = false,
+                    lastGuessResult = GuessResult.NONE,
                     isRevealed = false,
                     isGameOver = false,
                     isLoading = false
@@ -89,13 +117,18 @@ class DuelViewModel(
         val current = state.currentGame ?: return
         val challenger = state.challengerGame ?: return
 
-        // 1. Revelar el Metascore del retador
-        _uiState.update { it.copy(isRevealed = true) }
-
         val isCorrect = if (guessHigher) {
             challenger.metacritic >= current.metacritic
         } else {
             challenger.metacritic <= current.metacritic
+        }
+
+        // 1. Revelar el Metascore del retador junto al resultado visual
+        _uiState.update {
+            it.copy(
+                isRevealed = true,
+                lastGuessResult = if (isCorrect) GuessResult.CORRECT else GuessResult.WRONG
+            )
         }
 
         // 2. Esperar 1.2 segundos antes de avanzar o terminar el juego
@@ -105,20 +138,30 @@ class DuelViewModel(
 
             if (isCorrect) {
                 val nextChallenger = drawNextGame(excludeId = challenger.id)
+                val newScore = _uiState.value.score + 1
+                val previousBest = preferences.getHighScore()
+                val beatRecord = newScore > previousBest
+                val newHighScore = maxOf(_uiState.value.highScore, newScore)
+
+                preferences.incrementCorrectGuesses()
+                preferences.saveHighScore(newHighScore)
+
                 _uiState.update { currentState ->
-                    val newScore = currentState.score + 1
-                    val newHighScore = maxOf(currentState.highScore, newScore)
                     currentState.copy(
                         currentGame = challenger,
                         challengerGame = nextChallenger,
                         score = newScore,
                         highScore = newHighScore,
+                        isNewRecord = currentState.isNewRecord || beatRecord,
+                        lastGuessResult = GuessResult.NONE,
                         isRevealed = false
                     )
                 }
             } else {
+                val updatedGamesPlayed = preferences.incrementGamesPlayed()
                 _uiState.update { currentState ->
                     currentState.copy(
+                        gamesPlayed = updatedGamesPlayed,
                         isGameOver = true
                     )
                 }
